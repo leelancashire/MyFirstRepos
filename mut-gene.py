@@ -1,5 +1,7 @@
 """
-This script will read in some gene expression data, and perform a t-test to find differences between groups
+This script will read in some gene expression data, then some mutation data, and 
+search for genes whose mutation status may cause drastic over or under expression of a list of pathways
+
 """
 
 # Lee Lancashire, August 2013
@@ -13,18 +15,18 @@ import heatmap # heatmap.py file
 """ Read Data """
 
 # Read input data
-csv_file_object = csv.reader(open('pway_dat.csv', 'rb')) #Load in the training csv file
+csv_file_object = csv.reader(open('/Users/llancashire/Dropbox/ThomsonReuters/Current Projects/omics integration/source_dat/gene_dat.csv', 'rb')) #Load in the training csv file
 # contains 244 rows (244 samples) X 728 cols  
 train_header = csv_file_object.next() #Skip the fist line as it is a header
 train_data=[] #Creat a variable called 'train_data'
 for row in csv_file_object: #Skip through each row in the csv file
-    train_data.append(row[0:]) #adding each row to the data variable
+    train_data.append(row[0:]) #adding each row to the data variable- start at 1 if you want to avoid rownames
 
 train_data = np.array(train_data) #Then convert from a list to an array
 train_data = train_data.astype(np.float) # convert from string to float
 
 # Read endpoint data
-csv_file_object = csv.reader(open('mut_dat.csv', 'rb')) #Load in the training csv file
+csv_file_object = csv.reader(open('/Users/llancashire/Dropbox/ThomsonReuters/Current Projects/omics integration/source_dat/mut_dat.csv', 'rb')) #Load in the endpoint csv file
 # contains 244 rows (244 samples) X 728 cols  
 endpoint_header = csv_file_object.next() #Skip the fist line as it is a header
 endpoint_data=[] #Creat a variable called 'train_data'
@@ -41,6 +43,13 @@ endpoint_data = endpoint_data.astype(np.float) # convert from string to float
 train_data.shape
 nrow = train_data.shape[0]
 ncol = train_data.shape[1]
+
+
+# standardize training data; mean = 0, std = 1
+for x in xrange(0, ncol):
+	mean = np.mean(train_data[:, x])
+	std = np.std(train_data[:, x])
+	train_data[:, x] = (train_data[:, x] - mean) / std
 
 
 """ Loop through each mutation, finding the DEGs associated with mutation """
@@ -72,10 +81,10 @@ for i in xrange(0, len(endpoint_header)):
 				DEGs.append(x)
 		# create expression matrix just containing DEGs
 		DEGs_data = train_data[:, DEGs]
-		numDEGs = DEGs_data.shape[1]-1
+		numDEGs = DEGs_data.shape[1]
 		# standardize; mean = 0, std = 1
 		zData = np.array(DEGs_data, copy=True)
-		for x in xrange(0,numDEGs):
+		for x in xrange(0, numDEGs):
 			mean = np.mean(DEGs_data[:, x])
 			std = np.std(DEGs_data[:, x])
 			zData[:, x] = (DEGs_data[:, x] - mean) / std
@@ -89,30 +98,24 @@ for i in xrange(0, len(endpoint_header)):
 		down[down >-2] = 0.0
 		down[down <-2] = 1.0
 		# for each gene's up and down table, calculate fisher exact
-		"""
-    	Given a 2x2 table:
- 
-        +---+---+
-        | a | b |
-        +---+---+
-        | c | d |
-        +---+---+
- 
-    	represented by a list of lists::
- 
-        [[a,b],[c,d]]
- 		
-    	this calculates the sum of the probability of this table and all others
-    	more extreme under the null hypothesis that there is no association between
-    	the categories represented by the vertical and horizontal axes.
-    	a = IS differentially expressed and IS mutated
-    	b = NOT differentially expressed and IS mutated
-    	c = IS differentially expressed and NOT mutated
-    	d = NOT differentially expressed and NOT mutated
-
-
-    """
-		# storage
+		#Given a 2x2 table:
+ 		#+---+---+
+        #| a | b |
+        #+---+---+
+        #| c | d |
+        #+---+---+
+ 		# represented by a list of lists::
+ 		# [[a,b],[c,d]]
+ 		#
+    	#this calculates the sum of the probability of this table and all others
+    	#more extreme under the null hypothesis that there is no association between
+    	#the categories represented by the vertical and horizontal axes.
+    	#a = IS differentially expressed and IS mutated
+    	#b = NOT differentially expressed and IS mutated
+    	#c = IS differentially expressed and NOT mutated
+    	#d = NOT differentially expressed and NOT mutated
+    	#
+    	# storage
 		fisher_res_up = []
 		fisher_res_down = []
 		sig_genes_up = []
@@ -153,11 +156,13 @@ for i in xrange(0, len(endpoint_header)):
 				sig_genes_down.append(x)
 			fisher_res_up.append(fisher_up)
 			fisher_res_down.append(fisher_down)
-		""" Heatmap """
+		## Heatmap time
 		# generate a heatmap for the significant genes
 		# get list of sig genes
 		s = [DEGs[z] for z in sig_genes_up]
-		s.extend(DEGs[i] for i in sig_genes_down)
+		s.extend(DEGs[z] for z in sig_genes_down)
+		#s = sig_genes_up
+		#s.extend(sig_genes_down)
 		if len(s) > 1:
 			# create matrix
 			dat = train_data[:, s]
@@ -174,12 +179,7 @@ for i in xrange(0, len(endpoint_header)):
 	            column_method, row_metric, column_metric,
 	            color_gradient, filename)
 			"""
-			fname = 'heatmaps/' + endpoint_header[i] + '.png'
+			fname = 'gene-heatmaps/' + endpoint_header[i] + '.png'
 			heatmap.heatmap(x = dat.transpose(), row_header = col_names, column_header = mut_status, \
 	    		row_method = 'ward', column_method = 'ward', row_metric = 'euclidean', column_metric = 'euclidean', \
 				color_gradient = 'red_white_blue', filename = fname)
-print "Complete!!"
-
-
-
-

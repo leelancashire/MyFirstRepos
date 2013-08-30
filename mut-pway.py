@@ -1,5 +1,7 @@
 """
-This script will read in some gene expression data, and perform a t-test to find differences between groups
+This script will read in some gene expression data, then some mutation data, and 
+search for genes whose mutation status may cause drastic over or under expression of a list of pathways
+
 """
 
 # Lee Lancashire, August 2013
@@ -174,7 +176,7 @@ for i in xrange(0, len(endpoint_header)):
 	            column_method, row_metric, column_metric,
 	            color_gradient, filename)
 			"""
-			fname = 'heatmaps/' + endpoint_header[i] + '.png'
+			fname = 'pway-heatmaps/' + endpoint_header[i] + '.png'
 			heatmap.heatmap(x = dat.transpose(), row_header = col_names, column_header = mut_status, \
 	    		row_method = 'ward', column_method = 'ward', row_metric = 'euclidean', column_metric = 'euclidean', \
 				color_gradient = 'red_white_blue', filename = fname)
