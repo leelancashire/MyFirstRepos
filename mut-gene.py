@@ -183,3 +183,96 @@ for i in xrange(0, len(endpoint_header)):
 			heatmap.heatmap(x = dat.transpose(), row_header = col_names, column_header = mut_status, \
 	    		row_method = 'ward', column_method = 'ward', row_metric = 'euclidean', column_metric = 'euclidean', \
 				color_gradient = 'red_white_blue', filename = fname)
+
+
+
+
+i=0
+nrow = train_data.shape[0]
+ncol = train_data.shape[1]
+endpoint = endpoint_data[:, i]
+# find data belonging to each class
+group0 = endpoint == 0
+# ensure we have at least 2 samples in each class
+num_grp0 = sum(group0 == True)
+num_grp1 = sum(group0 == False)
+if num_grp0 > 1 and num_grp1 > 1:
+	group0 = train_data[group0, :]
+	group1 = endpoint == 1
+	group1 = train_data[group1, :]
+
+tscore = []
+pval = []
+DEGs = []
+for x in xrange(0, ncol):
+	t_gene, p_gene = ttest_ind(group0[:, x], group1[:, x])
+	tscore.append(t_gene)
+	pval.append(p_gene)
+	if p_gene < (0.05/ncol): # find indeces of genes with p-val < 0.05/n (boneferroni correction)
+		DEGs.append(x)
+		# create expression matrix just containing DEGs
+		DEGs_data = train_data[:, DEGs]
+		numDEGs = DEGs_data.shape[1]
+
+
+
+
+
+
+
+
+    """
+    /* A numerically stable one-pass algorithm is used, see
+       http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#On-line_algorithm 
+       here: s ~ mean, ss ~ M2.
+       Work through the large matrix x in the order in which it is in memory (column-wise) -
+       in the hope that this may speed up getting it through the CPU. */
+    switch(which) {
+	case 0:  /* by row */
+	"""
+
+i=0
+nrgrp = 2
+nr = nrow
+nc = ncol
+nt = nc # num tests
+fac = endpoint_data[:, i]
+
+# storage for intermediate quantities
+s = np.empty((2, nt))
+ss = np.empty((2, nt))
+
+
+x = train_data
+
+for grp in xrange(0, nrgrp):
+	for i in xrange(0, nt):
+		s[grp][i] = ss[grp][i] = 0 
+
+
+n = np.empty((2))
+for grp in xrange(0, nrgrp):
+	n[grp] = 0
+for i in xrange(0, nr):
+	grp = fac[i]
+	n[grp]+= 1
+	for j in xrange(0, nc):
+		z = x[i, j]
+		delta = z - s[grp][j]
+                newmean = s[grp][j] + delta/n[grp]
+                s[grp][j]  = newmean
+                ss[grp][j] += delta*(z-newmean)
+                        
+# calc statistic
+df = n[0]+n[1]-2;
+dm = []
+statistic = []
+p = []
+factor = np.sqrt((df) * n[0] * n[1] / (n[0]+n[1]))
+for i in xrange(0, nt):
+    z = ss[0][i] + ss[1][i]
+    dm.append(s[0][i] - s[1][i])
+    statistic.append(factor * dm[i] / np.sqrt(z))
+    p.append(2*(1-stats.t.sf(statistic[i], df)))
+
+
